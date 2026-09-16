@@ -1,0 +1,37 @@
+/* Reserve the player's measured height so it never covers the source. */
+.debug-focus-header{display:none}
+body.debug-focused{overflow:hidden}
+.debugger.is-focused{position:fixed;inset:0;z-index:1000;border:0;border-radius:0;background:var(--paper);padding:66px 24px calc(var(--player-height,128px) + 38px + env(safe-area-inset-bottom));height:100dvh;animation:workspace-in .24s ease-out}
+.is-focused .debug-focus-header{position:absolute;top:12px;left:24px;right:24px;display:flex;align-items:center;justify-content:space-between;gap:16px;height:40px}
+.debug-focus-header b{font-size:15px}.debug-focus-header small{font-size:12px;color:var(--muted)}.escape-hint{font:10px var(--mono);border:1px solid var(--line);border-radius:4px;padding:2px 5px}
+.is-focused .debug-columns{height:100%;border:1px solid #c8d7ca;border-radius:12px;overflow:hidden;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);background:white}
+.is-focused .code-panel{display:flex;flex-direction:column;min-height:0}
+.is-focused #debug-code{height:auto;flex:1;min-height:0;font-size:13px;overscroll-behavior:contain}
+.is-focused .debug-state{height:100%;max-height:none;overscroll-behavior:contain}
+.is-focused .debug-player{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:1001;width:min(800px,calc(100% - 40px));border:1px solid #c5d5bd;border-radius:22px;background:#f7fbf2ed;backdrop-filter:blur(18px);box-shadow:0 12px 38px #193b352b,0 1px 4px #193b3510;overflow:hidden;animation:player-in .42s cubic-bezier(.2,.8,.2,1)}
+.is-focused .debug-controls{background:transparent;padding:13px 18px 6px;justify-content:center;flex-wrap:nowrap;gap:8px}
+.is-focused .debug-controls .button{border:0;background:transparent;min-height:42px;white-space:nowrap;font-size:12px}
+.is-focused .debug-controls .button:hover:not(:disabled){background:#e6eedb}
+.is-focused .debug-controls #debug-play{background:var(--green);color:white;border-radius:30px;padding:12px 24px;min-width:116px;box-shadow:0 3px 8px #185b4a22}
+.is-focused .debug-controls #debug-play:hover{background:#104638}
+.is-focused .debug-controls label{margin-left:10px}.is-focused #debug-counter{min-width:68px;text-align:right}
+.is-focused .debug-scrub{border:0;padding:4px 22px 15px;gap:14px}
+.is-focused .debug-scrub label{font-size:10px;color:var(--muted)}.is-focused #debug-timeline{cursor:pointer}
+@keyframes player-in{from{opacity:0;transform:translate(-50%,35px) scale(.96)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes workspace-in{from{opacity:.5}to{opacity:1}}
+@media(max-width:760px){
+  .debugger.is-focused{padding:58px 10px calc(var(--player-height,150px) + 28px + env(safe-area-inset-bottom))}
+  .is-focused .debug-focus-header{left:12px;right:12px;top:8px;gap:8px}.debug-focus-header small,.escape-hint{display:none}
+  .is-focused .debug-focus-header .button{font-size:11px;padding:8px 12px}
+  .is-focused .debug-columns{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1.15fr) minmax(0,1fr)}
+  .is-focused #debug-code{font-size:11px}.is-focused .code-panel{padding-top:10px}.is-focused .code-panel>.panel-label{padding-bottom:8px}
+  .is-focused .debug-state{padding:12px;border-top:1px solid var(--line)}
+  .is-focused .debug-player{width:calc(100% - 20px);bottom:calc(10px + env(safe-area-inset-bottom));border-radius:18px}
+  .is-focused .debug-controls{flex-wrap:wrap;gap:2px 4px;padding:8px 10px 2px}
+  .is-focused .debug-controls .button{min-height:40px;padding:8px;font-size:11px}
+  .is-focused .debug-controls #debug-play{min-width:94px;padding:10px 16px}
+  .is-focused .debug-controls label{margin:2px 0 0;justify-content:center;font-size:10px;flex-basis:62%}
+  .is-focused .debug-controls select{padding:4px;font-size:11px}.is-focused #debug-counter{font-size:10px;min-width:55px}
+  .is-focused .debug-scrub{padding:4px 16px 10px;flex-wrap:nowrap}.is-focused .debug-scrub label{font-size:0;width:0;overflow:hidden}.is-focused .debug-scrub input{flex:1}
+}
+@media(prefers-reduced-motion:reduce){.debugger.is-focused,.is-focused .debug-player{animation:none}}
