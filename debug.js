@@ -32,42 +32,29 @@
 
   let defaultCode = '', executionCode = '', input = '', trace = [], index = 0, outcome = null;
   let worker = null, interval = null, deadline = null, busy = false;
-  let focusReturn = null;
   function sizePlayer() {
-    if (el('debugger').classList.contains('is-focused'))
-      el('debugger').style.setProperty('--player-height',`${el('debug-player').offsetHeight}px`);
+    if (el('debug-player').classList.contains('is-floating'))
+      document.body.style.setProperty('--floating-player-height',`${el('debug-player').offsetHeight}px`);
   }
   new ResizeObserver(sizePlayer).observe(el('debug-player'));
-  function focusCode() {
-    if (!trace.length || busy || el('debugger').classList.contains('is-focused')) return;
-    focusReturn = document.activeElement === document.body ? el('debug-build') : document.activeElement;
-    el('debugger').classList.add('is-focused');
-    el('debugger').setAttribute('role','dialog');
-    el('debugger').setAttribute('aria-modal','true');
-    el('debugger').setAttribute('aria-label','Depurador Python — código em foco');
-    document.body.classList.add('debug-focused');
-    sizePlayer(); show();
-    el('debug-play').focus({preventScroll:true});
-  }
-  function exitFocus() {
-    pause();
-    el('debugger').classList.remove('is-focused');
-    for (const attr of ['role','aria-modal','aria-label']) el('debugger').removeAttribute(attr);
-    document.body.classList.remove('debug-focused');
-    if (focusReturn?.isConnected && !focusReturn.disabled) focusReturn.focus({preventScroll:true});
-  }
-  el('debug-focus').addEventListener('click',focusCode);
-  el('debug-exit-focus').addEventListener('click',exitFocus);
-  document.addEventListener('keydown',event=>{
-    if (!el('debugger').classList.contains('is-focused')) return;
-    if (event.key==='Escape') {event.preventDefault();exitFocus();return;}
-    if(event.key==='Tab') {
-      const items=[...el('debugger').querySelectorAll('button:not(:disabled),select,input:not(:disabled),[tabindex="0"]')].filter(node=>node.getClientRects().length);
-      const first=items[0],last=items.at(-1);
-      if(event.shiftKey && document.activeElement===first){event.preventDefault();last.focus();}
-      else if(!event.shiftKey && document.activeElement===last){event.preventDefault();first.focus();}
+  function floatPlayer() {
+    const player = el('debug-player');
+    if (player.classList.contains('is-floating')) return;
+    const before = player.getBoundingClientRect();
+    el('debug-player-slot').style.height = `${before.height}px`;
+    player.classList.add('is-floating');
+    document.body.classList.add('has-floating-player');
+    sizePlayer();
+    const after = player.getBoundingClientRect();
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const dx = (before.left + before.right - after.left - after.right) / 2;
+      const dy = (before.top + before.bottom - after.top - after.bottom) / 2;
+      player.animate([
+        {transform:`translate(calc(-50% + ${dx}px), ${dy}px) scale(${before.width/after.width}, ${before.height/after.height})`,opacity:.7},
+        {transform:'translateX(-50%)',opacity:1}
+      ],{duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});
     }
-  });
+  }
   const playbackIds = ['debug-reset','debug-prev','debug-play','debug-next','debug-timeline'];
   const events = {call:'ENTRADA NO MÉTODO',line:'ANTES DE EXECUTAR A LINHA',return:'RETORNO DO MÉTODO',exception:'EXCEÇÃO'};
   function status(message, failed = false) { el('debug-status').textContent = message; el('debug-status').classList.toggle('failed',failed); }
@@ -77,7 +64,6 @@
     el('debug-input').disabled = value; el('python-editor').disabled = value; el('debug-restore').disabled = value;
     document.querySelectorAll('[data-debug-example]').forEach(b => b.disabled = value);
     for (const id of playbackIds) el(id).disabled = value || !trace.length;
-    el('debug-focus').disabled = value || !trace.length;
   }
   function drawCode(code) {
     el('debug-code').replaceChildren();
@@ -158,7 +144,7 @@
       setBusy(false); el('debug-timeline').max = Math.max(0,trace.length-1);
       if (!trace.length) { status('Não foi possível gerar passos: ' + (outcome.error || 'main() não executou linhas rastreáveis.'),true); return; }
       status(`${trace.length} passos registrados para ${JSON.stringify(input)}. Use “Animar” ou “Próxima linha”.${outcome.error ? ' Esta entrada termina com uma exceção — acompanhe onde ela surge.' : ''}`);
-      show(); focusCode();
+      show();
     };
     worker.onerror = e => { e.preventDefault(); failure('Falha ao carregar o motor Python. Confira a conexão e tente novamente.'); };
   }
@@ -167,6 +153,7 @@
     pause(); trace = []; outcome = null; index = 0;
     executionCode = el('python-editor').value; input = el('debug-input').value;
     drawCode(executionCode); setBusy(true); status('Preparando execução…');
+    floatPlayer();
     if (!worker) newWorker();
     // A separate worker keeps a modified program from blocking the page.
     deadline = setTimeout(() => failure('Execução cancelada após 90 segundos. Confira a conexão ou revise o código e tente novamente.'),90000);
@@ -180,7 +167,7 @@
   el('debug-timeline').addEventListener('input', () => {pause();index=Number(el('debug-timeline').value);show();});
   function play() {
     if (!trace.length) return;
-    focusCode();
+    floatPlayer();
     if (index===trace.length-1) {index=0;show();}
     el('debug-play').textContent='Ⅱ Pausar';
     interval=setInterval(()=>{index=Math.min(index+1,trace.length-1);show();},Number(el('debug-speed').value));
