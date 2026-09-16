@@ -1,5 +1,5 @@
 (() => {
-  const steps = [
+  const steps = window.ROTEIRO_GUIDE?.diagramSteps || [
     {title:'Começar por um inteiro',text:'O caminho de entrada passa obrigatoriamente por INT. O Parser confere o tipo e usa esse valor como resultado inicial. Não existe um atalho que comece por um operador.',code:'if Parser.lexer.next.type != "INT":\n    raise Exception("[Parser] Esperado INT")\nresult = Parser.lexer.next.value',parts:['entry','int']},
     {title:'Escolher se a expressão continua',text:'Depois do inteiro, um + ou − leva ao caminho de retorno. No código, esse desvio é a condição do while. O operador precisa ser guardado antes de pedir outro token.',code:'while Parser.lexer.next.type in ("PLUS", "MINUS"):\n    operator = Parser.lexer.next.type\n    Parser.lexer.select_next()',parts:['loop','plus','minus']},
     {title:'O retorno exige outro INT',text:'As duas alternativas voltam ao mesmo INT. Por isso, depois do operador, o Parser exige um número, aplica a operação e avança. O laço pode se repetir várias vezes.',code:'if Parser.lexer.next.type != "INT":\n    raise Exception("[Parser] Esperado INT")\n# Atualiza result com + ou −.\nParser.lexer.select_next()',parts:['back','int']},

@@ -1,6 +1,7 @@
 (() => {
   const el = id => document.getElementById(id);
-  const entries = [
+  const guide = window.ROTEIRO_GUIDE || {mode:'2',codeFile:'roteiro2-enxuto.py'};
+  const entries = guide.entries || [
     ['Token', 'CLASSE', 'Representa uma unidade léxica: INT, PLUS, MINUS ou EOF. Guarda type e value.', 'Separa a categoria gramatical do conteúdo concreto. O Parser pode reconhecer INT sem conhecer antecipadamente seu valor.'],
     ['Token.__init__(type, value)', 'MÉTODO CONSTRUTOR', 'Recebe categoria e valor e os atribui a self.type e self.value.', 'Inicializa cada token criado pelo Lexer. Não percorre caracteres nem calcula expressões.'],
     ['Lexer', 'CLASSE', 'Mantém source, position e next entre os pedidos de tokens.', 'Transforma caracteres em peças reconhecíveis, sob demanda, sem montar uma lista completa.'],
@@ -56,7 +57,7 @@
     }
   }
   const playbackIds = ['debug-reset','debug-prev','debug-play','debug-next','debug-timeline'];
-  const events = {call:'ENTRADA NO MÉTODO',line:'ANTES DE EXECUTAR A LINHA',return:'RETORNO DO MÉTODO',exception:'EXCEÇÃO'};
+  const events = {call:guide.mode==='1'?'ENTRADA NA FUNÇÃO':'ENTRADA NO MÉTODO',line:'ANTES DE EXECUTAR A LINHA',return:guide.mode==='1'?'RETORNO DA FUNÇÃO':'RETORNO DO MÉTODO',exception:'EXCEÇÃO'};
   function status(message, failed = false) { el('debug-status').textContent = message; el('debug-status').classList.toggle('failed',failed); }
   function pause() { clearInterval(interval); interval = null; el('debug-play').textContent = '▶ Animar'; }
   function setBusy(value) {
@@ -93,7 +94,21 @@
     el('debug-action-title').textContent = `${frame.method} · linha ${frame.line}`;
     el('debug-action-text').textContent = frame.action;
     el('debug-event').parentElement.classList.toggle('error',frame.event === 'exception');
-    el('debug-position').textContent = `position = ${frame.position ?? '—'}`;
+    el('debug-position').textContent = `${guide.mode==='1'?'caractere':'position'} = ${frame.position ?? '—'}`;
+    if (guide.mode==='1') {
+      el('debug-phase').textContent = frame.phase;
+      el('debug-token-index').textContent = `índice do token = ${frame.token_index ?? '—'}`;
+      const list=el('debug-token-list');list.replaceChildren();
+      (frame.tokens || []).forEach((token,i)=>{
+        const item=document.createElement('span');item.className='batch-token'+(i===frame.token_index?' current':'');
+        item.textContent=`${i}: (${token.type}, ${token.value})`;
+        if (i===frame.token_index) item.setAttribute('aria-current','step');
+        list.append(item);
+      });
+      if(!frame.tokens?.length)list.textContent='[] — a lista começa vazia.';
+      const currentToken=list.querySelector('.current');
+      if(currentToken)list.scrollLeft=Math.max(0,currentToken.offsetLeft-list.clientWidth/2);
+    }
     const source = el('debug-source'); source.replaceChildren();
     // Python indexes Unicode code points, so the visual cursor does too.
     const chars = Array.from(input);
@@ -104,7 +119,7 @@
       cell.title = `Posição ${i}`; source.append(cell);
     }
     const cursor = source.querySelector('.cursor'); if (cursor) source.scrollLeft = Math.max(0,cursor.offsetLeft-source.clientWidth/2);
-    const tokenText = f => f?.token ? `Token(${JSON.stringify(f.token.type)}, ${f.token.value})` : 'None';
+    const tokenText = f => f?.token ? `${guide.mode==='1'?'':'Token'}(${JSON.stringify(f.token.type)}, ${f.token.value})` : 'None';
     el('debug-token').textContent = tokenText(frame);
     el('debug-token').parentElement.classList.toggle('changed',!!prev && tokenText(frame)!==tokenText(prev));
     el('debug-locals').replaceChildren();
@@ -117,7 +132,7 @@
     }
     const changes = [];
     if (prev && frame.position !== prev.position) changes.push(`position: ${prev.position ?? 'None'} → ${frame.position ?? 'None'}`);
-    if (prev && tokenText(frame)!==tokenText(prev)) changes.push(`next: ${tokenText(prev)} → ${tokenText(frame)}`);
+    if (prev && tokenText(frame)!==tokenText(prev)) changes.push(`${guide.mode==='1'?'tokens[posicao]':'next'}: ${tokenText(prev)} → ${tokenText(frame)}`);
     if (sameMethod) for (const [key,value] of Object.entries(frame.locals)) if(value !== prev.locals[key]) changes.push(`${key}: ${prev.locals[key] ?? 'não definido'} → ${value}`);
     el('debug-changes').textContent = changes.length ? 'Desde o passo anterior: ' + changes.join(' · ') : 'Nenhuma mudança de valores observada neste passo.';
     el('debug-stack').replaceChildren();
@@ -134,7 +149,7 @@
   function dispose() { worker?.terminate(); worker = null; clearTimeout(deadline); }
   function failure(message) { dispose(); setBusy(false); status(message,true); }
   function newWorker() {
-    worker = new Worker('debug-worker.js');
+    worker = new Worker('debug-worker.js?v=courses1');
     worker.onmessage = ({data}) => {
       if (data.status) { status(data.status); return; }
       clearTimeout(deadline);
@@ -157,7 +172,7 @@
     if (!worker) newWorker();
     // A separate worker keeps a modified program from blocking the page.
     deadline = setTimeout(() => failure('Execução cancelada após 90 segundos. Confira a conexão ou revise o código e tente novamente.'),90000);
-    worker.postMessage({code:executionCode,expression:input});
+    worker.postMessage({code:executionCode,expression:input,mode:guide.mode});
   }
   el('debug-form').addEventListener('submit', e => {e.preventDefault();run();});
   el('debug-cancel').addEventListener('click', () => { dispose();setBusy(false);status('Execução cancelada. Você pode gerar outra.'); });
@@ -186,7 +201,7 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
   async function init() {
     try {
-      const response=await fetch('roteiro2-enxuto.py');
+      const response=await fetch(guide.codeFile);
       if(!response.ok)throw Error('Arquivo não encontrado.');
       defaultCode=await response.text();el('python-editor').value=defaultCode;drawCode(defaultCode);
       status('Código pronto. Clique em Gerar execução para iniciar o Python.');

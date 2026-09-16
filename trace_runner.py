@@ -5,21 +5,27 @@ import json
 import sys
 
 
-def record_execution(code, expression):
-    filename = "roteiro2-enxuto.py"
-    namespace = {"__name__": "roteiro2_visual"}
+def record_execution(code, expression, mode="2"):
+    filename = "roteiro1-enxuto.py" if mode == "1" else "roteiro2-enxuto.py"
+    namespace = {"__name__": "roteiro_visual"}
     frames = []
     output = io.StringIO()
     source_lines = code.splitlines()
+    batch_tokens = []
+    char_position = None
+    token_index = None
 
     def value_repr(value):
         if value is None or isinstance(value, (str, int, float, bool)):
+            return repr(value)[:250]
+        if isinstance(value, (tuple, list)):
             return repr(value)[:250]
         if type(value).__name__ == "Token":
             return f"Token({getattr(value, 'type', None)!r}, {getattr(value, 'value', None)!r})"
         return f"<{type(value).__name__}>"
 
     def trace(frame, event, arg):
+        nonlocal batch_tokens, char_position, token_index
         if frame.f_code.co_filename != filename:
             return None
         if len(frames) >= 5000:
@@ -37,6 +43,21 @@ def record_execution(code, expression):
                     lexer = obj
             cursor = cursor.f_back
         token = getattr(lexer, "next", None)
+        position = getattr(lexer, "position", None)
+        token_data = None if token is None else {"type": getattr(token, "type", None), "value": value_repr(getattr(token, "value", None))}
+        phase = "coordenação"
+        if mode == "1":
+            if frame.f_code.co_name == "tokenizar":
+                phase = "tokenização"
+                char_position = frame.f_locals.get("posicao", char_position)
+                current_tokens = frame.f_locals.get("tokens", [])
+                batch_tokens = [{"type": item[0], "value": value_repr(item[1])} for item in current_tokens if isinstance(item, (tuple, list)) and len(item) == 2]
+            elif frame.f_code.co_name == "avaliar":
+                phase = "avaliação"
+                token_index = frame.f_locals.get("posicao", token_index)
+            position = char_position
+            if isinstance(token_index, int) and 0 <= token_index < len(batch_tokens):
+                token_data = batch_tokens[token_index]
         line = frame.f_lineno
         statement = source_lines[line - 1] if 0 < line <= len(source_lines) else ""
         action = statement.partition("  # ")[2] or statement.strip()
@@ -54,8 +75,8 @@ def record_execution(code, expression):
         frames.append({
             "line": line, "event": event, "method": frame.f_code.co_qualname,
             "action": action, "stack": list(reversed(chain)), "locals": local_values,
-            "position": getattr(lexer, "position", None),
-            "token": None if token is None else {"type": getattr(token, "type", None), "value": value_repr(getattr(token, "value", None))},
+            "position": position, "token": token_data,
+            "tokens": list(batch_tokens), "token_index": token_index, "phase": phase,
             "output": output.getvalue(),
         })
         return trace

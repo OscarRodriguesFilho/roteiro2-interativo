@@ -5,12 +5,13 @@
   <title>Roteiro 02 · Um token de cada vez</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="debug.css?v=player2"><link rel="stylesheet" href="player.css?v=player2">
-  <link rel="stylesheet" href="diagrams.css?v=1"><script src="diagrams.js?v=1" defer></script>
-  <script src="simulator.js" defer></script><script src="app.js" defer></script><script src="debug.js?v=player2" defer></script>
+  <link rel="stylesheet" href="courses.css?v=1"><link rel="stylesheet" href="diagrams.css?v=1"><script src="diagrams.js?v=courses1" defer></script>
+  <script src="simulator.js" defer></script><script src="app.js" defer></script><script src="debug.js?v=courses1" defer></script>
 </head>
 <body>
 <header><a class="brand" href="#"><span class="brand-icon">c.</span> laboratório de compiladores</a><nav aria-label="Principal"><a href="#mudanca">A mudança</a><a href="#glossario">Glossário</a><a href="#conexoes">Conexões</a><a href="#diagramas">Diagramas</a><a href="#debug">Depurador</a><a href="#laboratorio">Simulador</a></nav><span class="chapter">INSIDE THE CODE / 02</span></header>
 <main>
+<nav class="course-switch" aria-label="Escolher roteiro"><span>TRILHA DE COMPILADORES</span><a href="roteiro1.html">01 · Primeiras expressões</a><a href="index.html" aria-current="page">02 · Lexer e Parser</a></nav>
 <section class="hero">
   <div><div class="eyebrow"><span class="dot"></span> GUIA INTERATIVO · ROTEIRO 2</div><h1>A mesma conta.<br>Uma nova <em>arquitetura.</em></h1><p class="lead">Antes, todos os tokens de uma vez. Agora, o Parser pede e o Lexer entrega. Descubra o que acontece entre um caractere e o resultado.</p><a class="button primary" href="#laboratorio">Explorar por dentro <span>↗</span></a><span class="hero-note">Python por trás. Visual na sua frente.</span></div>
   <div class="hero-art" aria-label="O Parser solicita um token ao Lexer, que entrega INT 22"><div class="art-top">UM TOKEN DE CADA VEZ <span>● LIVE CONCEPT</span></div><div class="art-source">11 <span>+</span> <b>22</b> − 3</div><div class="orbit"><div class="art-node">Lexer<small>separa as peças</small></div><div class="connection"><span>select_next() ←</span><i></i><span>→ Token</span></div><div class="art-node">Parser<small>entende a ordem</small></div></div><div class="floating-token"><span>INT</span><strong>22</strong><small>lexer.next</small></div><div class="art-bottom">01 / LER <span>02 / RECONHECER</span> 03 / CALCULAR</div></div>
