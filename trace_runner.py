@@ -3,10 +3,12 @@ import contextlib
 import io
 import json
 import sys
+import tempfile
+from pathlib import Path
 
 
 def record_execution(code, expression, mode="2"):
-    filename = "roteiro1-enxuto.py" if mode == "1" else "roteiro2-enxuto.py"
+    filename = f"roteiro{mode}-enxuto.py"
     namespace = {"__name__": "roteiro_visual"}
     frames = []
     output = io.StringIO()
@@ -14,6 +16,23 @@ def record_execution(code, expression, mode="2"):
     batch_tokens = []
     char_position = None
     token_index = None
+    nodes = {}
+    node_results = {}
+    symbol_table = None
+    temporary = None
+
+    def remember(value):
+        node_class = namespace.get("Node")
+        if isinstance(node_class, type) and isinstance(value, node_class):
+            if id(value) not in nodes:
+                nodes[id(value)] = value
+            for child in getattr(value, "children", []):
+                if id(child) not in nodes:
+                    remember(child)
+        elif isinstance(value, (list, tuple)):
+            for item in value[:150]:
+                if not isinstance(item, (list, tuple)):
+                    remember(item)
 
     def value_repr(value):
         if value is None or isinstance(value, (str, int, float, bool)):
@@ -25,7 +44,7 @@ def record_execution(code, expression, mode="2"):
         return f"<{type(value).__name__}>"
 
     def trace(frame, event, arg):
-        nonlocal batch_tokens, char_position, token_index
+        nonlocal batch_tokens, char_position, token_index, symbol_table
         if frame.f_code.co_filename != filename:
             return None
         if len(frames) >= 5000:
@@ -41,6 +60,11 @@ def record_execution(code, expression, mode="2"):
                 obj = cursor.f_locals.get("self")
                 if type(obj).__name__ == "Lexer":
                     lexer = obj
+                if mode in ("4", "5"):
+                    for value in cursor.f_locals.values():
+                        remember(value)
+                        if type(value).__name__ == "SymbolTable":
+                            symbol_table = value
             cursor = cursor.f_back
         token = getattr(lexer, "next", None)
         position = getattr(lexer, "position", None)
@@ -69,6 +93,23 @@ def record_execution(code, expression, mode="2"):
             action = str(arg[1])
         local_values = {k: value_repr(v) for k, v in frame.f_locals.items() if not k.startswith("__")}
         obj = frame.f_locals.get("self")
+        active_node = None
+        tree = []
+        if mode in ("4", "5"):
+            remember(arg if event == "return" else None)
+            if id(obj) in nodes:
+                active_node = str(id(obj))
+                local_values["self.value"] = value_repr(getattr(obj, "value", None))
+                if event == "return" and frame.f_code.co_name == "evaluate":
+                    node_results[id(obj)] = value_repr(arg)
+            for key, node in nodes.items():
+                tree.append({"id": str(key), "kind": type(node).__name__,
+                             "value": value_repr(getattr(node, "value", None)),
+                             "children": [str(id(child)) for child in getattr(node, "children", [])],
+                             "result": node_results.get(key)})
+            phase = "avaliação da AST" if any("evaluate" in name for name in chain) else ("retorno à main" if node_results else "construção da AST")
+            if "PrePro.filter" in chain:
+                phase = "pré-processamento"
         if type(obj).__name__ == "Token":
             local_values["self.type"] = value_repr(getattr(obj, "type", None))
             local_values["self.value"] = value_repr(getattr(obj, "value", None))
@@ -78,6 +119,9 @@ def record_execution(code, expression, mode="2"):
             "position": position, "token": token_data,
             "tokens": list(batch_tokens), "token_index": token_index, "phase": phase,
             "output": output.getvalue(),
+            "source": getattr(lexer, "source", None),
+            "tree": tree, "active_node": active_node,
+            "symbols": {name: value_repr(getattr(var, "value", None)) for name, var in getattr(symbol_table, "table", {}).items()},
         })
         return trace
 
@@ -87,6 +131,11 @@ def record_execution(code, expression, mode="2"):
         with contextlib.redirect_stdout(output):
             exec(compile(code, filename, "exec"), namespace)
             sys.argv = [filename, expression]
+            if mode == "5":
+                temporary = tempfile.TemporaryDirectory(prefix="roteiro5-")
+                program = Path(temporary.name) / "programa.go"
+                program.write_text(expression, encoding="utf-8")
+                sys.argv = [filename, str(program)]
             sys.settrace(trace)
             namespace["main"]()
     except Exception as exc:
@@ -94,4 +143,6 @@ def record_execution(code, expression, mode="2"):
     finally:
         sys.settrace(None)
         sys.argv = old_argv
+        if temporary is not None:
+            temporary.cleanup()
     return {"frames": frames, "output": output.getvalue(), "error": error}

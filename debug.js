@@ -111,11 +111,11 @@
     }
     const source = el('debug-source'); source.replaceChildren();
     // Python indexes Unicode code points, so the visual cursor does too.
-    const chars = Array.from(input);
+    const chars = Array.from(guide.mode === '5' ? (frame.source ?? input) : input);
     for (let i=0; i<=chars.length; i++) {
       const cell = document.createElement('span');
       cell.className = 'char' + (i === chars.length ? ' eof' : '') + (frame.position !== null && i < frame.position ? ' read' : '') + (i === frame.position ? ' cursor' : '');
-      cell.textContent = i === chars.length ? 'fim' : /\s/u.test(chars[i]) ? '·' : chars[i];
+      cell.textContent = i === chars.length ? 'fim' : chars[i] === '\n' ? '↵' : /\s/u.test(chars[i]) ? '·' : chars[i];
       cell.title = `Posição ${i}`; source.append(cell);
     }
     const cursor = source.querySelector('.cursor'); if (cursor) source.scrollLeft = Math.max(0,cursor.offsetLeft-source.clientWidth/2);
@@ -145,11 +145,12 @@
     el('debug-timeline').value = index;
     el('debug-prev').disabled = index===0; el('debug-reset').disabled = index===0; el('debug-next').disabled = last;
     if (last) pause();
+    window.renderCourseFrame?.(frame, prev);
   }
   function dispose() { worker?.terminate(); worker = null; clearTimeout(deadline); }
   function failure(message) { dispose(); setBusy(false); status(message,true); }
   function newWorker() {
-    worker = new Worker('debug-worker.js?v=courses1');
+    worker = new Worker('debug-worker.js?v=courses345');
     worker.onmessage = ({data}) => {
       if (data.status) { status(data.status); return; }
       clearTimeout(deadline);
